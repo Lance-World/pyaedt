@@ -143,3 +143,74 @@ This code creates the previous PDF report:
 .. image:: ../Resources/pdf_report.jpg
   :width: 800
   :alt: PDF report output example
+
+
+Apply templates and annotations to existing Circuit reports
+-----------------------------------------------------------
+
+You can reuse report templates, add markers, and insert trace characteristics on
+every existing Circuit report by leveraging the high-level report objects
+available in :mod:`ansys.aedt.core`. The following helper shows a typical
+workflow:
+
+.. code:: python
+
+    from pathlib import Path
+
+    from ansys.aedt.core import Circuit, Desktop
+
+
+    def export_circuit_reports(
+        project_path,
+        design_name,
+        template_file=None,
+        output_directory=None,
+        marker_x="16GHz",
+        marker_name="MX1",
+        trace_characteristic="YAtXVal",
+        trace_arguments=None,
+        trace_solution_range=None,
+        image_size=(1920, 1080),
+    ):
+        """Apply templates and export all Circuit reports as images."""
+
+        trace_arguments = trace_arguments or []
+        trace_solution_range = trace_solution_range or ["Full"]
+
+        with Desktop(new_desktop_session=False, specified_version="2025.2", close_on_exit=False):
+            with Circuit(project=project_path, design=design_name, specified_version="2025.2") as circuit:
+                post = circuit.post
+
+                export_dir = Path(output_directory or Path(project_path).parent / "CircuitReportImages")
+                export_dir.mkdir(parents=True, exist_ok=True)
+
+                for plot in post.plots:
+                    if template_file:
+                        plot.apply_report_template(template_file, property_type="All")
+
+                    if marker_x is not None:
+                        plot.add_cartesian_x_marker(marker_x, name=marker_name)
+
+                    if trace_characteristic:
+                        plot.add_trace_characteristics(
+                            trace_characteristic,
+                            arguments=trace_arguments,
+                            solution_range=trace_solution_range,
+                        )
+
+                    post.export_report_to_jpg(
+                        export_dir,
+                        plot.plot_name,
+                        width=image_size[0],
+                        height=image_size[1],
+                    )
+
+
+    if __name__ == "__main__":
+        export_circuit_reports(
+            project_path=r"C:\\Projects\\demo\\example.aedt",
+            design_name="Frequency",
+            template_file=r"C:\\Users\\Public\\Documents\\Ansoft\\ReportTemplates\\NEXT.rpt",
+            output_directory=r"C:\\Projects\\demo\\NEXT_Reports",
+            trace_arguments=["16GHz"],
+        )
